@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 from typing import Generator
+from langchain_community.callbacks.manager import get_openai_callback
 
 import pytest
 from langchain_core.runnables import RunnableConfig
@@ -11,7 +12,9 @@ from index_graph import graph as index_graph
 from retrieval_graph import graph
 from shared.configuration import BaseConfiguration
 from shared.retrieval import make_text_encoder
-
+from src.youtube_summarize import build_youtube_summary_graph, YouTubeSummaryState
+from src.retrieval_graph.configuration import AgentConfiguration
+from dotenv import load_dotenv
 
 @contextmanager
 def make_elastic_vectorstore(
@@ -74,3 +77,66 @@ async def test_retrieval_graph() -> None:
     # clean up after test
     with make_elastic_vectorstore(configuration) as vstore:
         await vstore.adelete([doc_id])
+
+
+@pytest.mark.asyncio
+async def test_youtube_summary_graph_search():
+    """Test YouTube summary graph with search path."""
+    graph = build_youtube_summary_graph()
+    graph.name = "YouTubeSummaryGraph"
+    
+    config = RunnableConfig(
+        configurable={
+            "model": "gpt-3.5-turbo",
+        }
+    )
+    
+    initial_state: YouTubeSummaryState = {
+        "query": "langchain tutorial short",
+        "video_url": None,
+        "video_urls": [],
+        "current_video": "",
+        "transcript": "",
+        "summary": ""
+    }
+    
+    result = await graph.ainvoke(initial_state, config)
+    print(result)
+
+    assert "summary" in result
+    assert isinstance(result["summary"], str)
+    assert len(result["summary"]) > 0
+    assert len(result["video_urls"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_youtube_summary_graph_direct_url():
+    """Test YouTube summary graph with direct URL path."""
+    graph = build_youtube_summary_graph()
+    graph.name = "YouTubeSummaryGraph"
+    
+    load_dotenv()
+    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+
+    config = RunnableConfig(
+        configurable={
+            "query_model": "openai/gpt-4o-mini",
+        }
+    )
+
+    initial_state: YouTubeSummaryState = {
+        "query": None,
+        "video_url": "https://www.youtube.com/watch?v=aywZrzNaKjs",
+        "video_urls": [],
+        "current_video": "",
+        "transcript": "",
+        "summary": ""
+    }
+    
+    result = await graph.ainvoke(initial_state, config)
+    print(result)
+
+    assert "summary" in result
+    assert isinstance(result["summary"], str)
+    assert len(result["summary"]) > 0
+    assert not result["video_urls"]  # Should be empty since we used direct URL

@@ -1,7 +1,7 @@
 """Manage the configuration of various retrievers.
 
 This module provides functionality to create and manage retrievers for different
-vector store backends, specifically Elasticsearch, Pinecone, and MongoDB.
+vector store backends, specifically Elasticsearch, Pinecone, MongoDB, and ChromaDB.
 """
 
 import os
@@ -92,6 +92,27 @@ def make_mongodb_retriever(
 
 
 @contextmanager
+def make_chromadb_retriever(
+    configuration: BaseConfiguration, embedding_model: Embeddings
+) -> Generator[VectorStoreRetriever, None, None]:
+    """Configure this agent to connect to a specific ChromaDB index."""
+    from langchain_chromadb import ChromaDBVectorStore
+
+    # Improved initialization with persistent directory
+    persist_directory = os.environ.get("CHROMADB_PERSIST_DIRECTORY", "./chroma_langchain_db")
+    
+    try:
+        vstore = ChromaDBVectorStore.from_existing_index(
+            os.environ["CHROMADB_URI"],
+            embedding=embedding_model,
+            persist_directory=persist_directory,  # Specify where to save data
+        )
+        yield vstore.as_retriever(search_kwargs=configuration.search_kwargs)
+    except Exception as e:
+        raise RuntimeError(f"Failed to create ChromaDB retriever: {e}")
+
+
+@contextmanager
 def make_retriever(
     config: RunnableConfig,
 ) -> Generator[VectorStoreRetriever, None, None]:
@@ -109,6 +130,10 @@ def make_retriever(
 
         case "mongodb":
             with make_mongodb_retriever(configuration, embedding_model) as retriever:
+                yield retriever
+
+        case "chromadb":
+            with make_chromadb_retriever(configuration, embedding_model) as retriever:
                 yield retriever
 
         case _:
