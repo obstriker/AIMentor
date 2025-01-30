@@ -1,4 +1,4 @@
-# LangGraph RAG Research Agent Template
+# LangGraph RAG personality replicator
 
 [![CI](https://github.com/langchain-ai/rag-research-agent-template/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/langchain-ai/rag-research-agent-template/actions/workflows/unit-tests.yml)
 [![Integration Tests](https://github.com/langchain-ai/rag-research-agent-template/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/langchain-ai/rag-research-agent-template/actions/workflows/integration-tests.yml)
